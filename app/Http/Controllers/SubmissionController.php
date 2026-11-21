@@ -61,6 +61,28 @@ class SubmissionController extends Controller
         // 2. Validasi input 'nilai' (required|integer|min:0|max:100) dan 'catatan_dosen' (nullable|string|max:1000).
         // 3. Simpan perubahan menggunakan $submission->update(...) dan redirect back() dengan pesan sukses.
 
+        if ($submission->assignment->course->dosen_id !== Auth::id()) {
+            abort(403, 'Akses ditolak. Anda bukan dosen pengampu mata kuliah ini.');
+        }
+
+        $validated = $request->validate([
+            'nilai' => ['required', 'integer', 'min:0', 'max:100'],
+            'catatan_dosen' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'nilai.required' => 'Nilai wajib diisi.',
+            'nilai.integer' => 'Nilai harus berupa angka bulat.',
+            'nilai.min' => 'Nilai minimal adalah 0.',
+            'nilai.max' => 'Nilai maksimal adalah 100.',
+            'catatan_dosen.max' => 'Catatan dosen maksimal 1000 karakter.',
+        ]);
+
+        $submission->update([
+            'nilai' => $validated['nilai'],
+            'catatan_dosen' => $validated['catatan_dosen'] ?? null,
+        ]);
+
+        return back()->with('success', "Nilai untuk {$submission->user->name} berhasil disimpan.");
+
         abort(501, 'Fitur belum diimplementasikan');
     }
 
@@ -70,6 +92,44 @@ class SubmissionController extends Controller
         // 1. Pastikan $assignment->course->dosen_id === Auth::id(), jika tidak abort(403).
         // 2. Muat relasi course.approvedStudents dan submissions dari $assignment.
         // 3. Kembalikan response()->streamDownload(...) yang menulis header & baris CSV menggunakan fopen('php://output', 'w') dan fputcsv().
+
+        if ($assignment->course->dosen_id !== Auth::id()) {
+            abort(403, 'Akses ditolak. Anda bukan dosen pengampu mata kuliah ini.');
+        }
+
+        $assignment->load(['course.approvedStudents', 'submissions']);
+        $students = $assignment->course->approvedStudents->sortBy('nomor_induk');
+        $submissions = $assignment->submissions->keyBy('user_id');
+
+        $filename = 'rekap-nilai-' . \Illuminate\Support\Str::slug($assignment->course->kode_mk . ' ' . $assignment->judul) . '.csv';
+
+        return response()->streamDownload(function () use ($students, $submissions) {
+            $out = fopen('php://output', 'w');
+
+            // BOM UTF-8 agar karakter terbaca benar di Excel
+            fwrite($out, "\xEF\xBB\xBF");
+
+            // Cegah CSV injection pada sel teks yang diawali karakter formula
+            $aman = fn($teks) => is_string($teks) && preg_match('/^[=+\-@\t\r]/', $teks) ? "'" . $teks : $teks;
+
+            fputcsv($out, ['NIM', 'Nama Mahasiswa', 'Status Pengumpulan', 'Waktu Pengumpulan', 'Nilai', 'Status Nilai', 'Catatan Dosen'], ',', '"', '\\');
+
+            foreach ($students as $student) {
+                $sub = $submissions->get($student->id);
+
+                fputcsv($out, [
+                    $student->nomor_induk ?? '-',
+                    $aman($student->name),
+                    $sub ? 'Sudah Mengumpulkan' : 'Belum Mengumpulkan',
+                    $sub && $sub->submitted_at ? $sub->submitted_at->format('Y-m-d H:i') : '-',
+                    $sub && $sub->nilai !== null ? $sub->nilai : '',
+                    $sub ? $sub->status_nilai : 'Belum Mengumpulkan',
+                    $sub ? $aman($sub->catatan_dosen ?? '') : '',
+                ], ',', '"', '\\');
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
 
         abort(501, 'Fitur belum diimplementasikan');
     }

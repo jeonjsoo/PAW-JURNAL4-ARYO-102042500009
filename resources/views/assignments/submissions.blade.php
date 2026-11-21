@@ -36,6 +36,9 @@
         <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
             
             {{-- TODO 7b: Tambahkan tombol Export CSV yang mengarah ke route('assignments.export-csv', $assignment) --}}
+            <a href="{{ route('assignments.export-csv', $assignment) }}" class="btn btn-primary btn-sm">
+                Export CSV
+            </a>
 
             <a href="{{ route('assignments.edit', $assignment->id) }}" class="btn btn-secondary btn-sm">
                 Edit Tugas
@@ -51,6 +54,26 @@
 
 <!-- Statistik Pengumpulan & Nilai -->
 {{-- TODO 7a: Tampilkan kartu ringkasan Total Mahasiswa, Jumlah Mengumpulkan, dan Rata-rata Nilai --}}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-body" style="padding: 1rem 1.25rem;">
+            <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Total Mahasiswa</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-main);">{{ $students->count() }}</div>
+        </div>
+    </div>
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-body" style="padding: 1rem 1.25rem;">
+            <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Sudah Mengumpulkan</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #059669;">{{ $students->filter(fn($s) => $submissions->has($s->id))->count() }}</div>
+        </div>
+    </div>
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-body" style="padding: 1rem 1.25rem;">
+            <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Rata-rata Nilai</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #2563eb;">{{ $averageScore ?? '-' }}</div>
+        </div>
+    </div>
+</div>
 
 <!-- Daftar Pengumpulan Mahasiswa -->
 <div class="card">
@@ -130,7 +153,22 @@
                                 <td>
                                     @if($sub)
                                         {{-- TODO 7c: Tambahkan form PATCH untuk input nilai (0-100) dan catatan_dosen pada setiap mahasiswa yang sudah mengumpulkan --}}
+                                        <form action="{{ route('submissions.grade', $sub->id) }}" method="POST" style="display: flex; gap: 0.5rem; align-items: flex-start; flex-wrap: wrap;">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="submission_id" value="{{ $sub->id }}">
+                                            <input type="number" name="nilai" min="0" max="100" required class="form-control" style="width: 90px;" placeholder="0-100"
+                                                value="{{ old('submission_id') == $sub->id ? old('nilai') : $sub->nilai }}">
+                                            <input type="text" name="catatan_dosen" maxlength="1000" class="form-control" style="flex: 1; min-width: 140px;" placeholder="Catatan dosen (opsional)"
+                                                value="{{ old('submission_id') == $sub->id ? old('catatan_dosen') : $sub->catatan_dosen }}">
+                                            <button type="submit" class="btn btn-primary btn-sm">Simpan Nilai</button>
+                                            @if($errors->any() && old('submission_id') == $sub->id)
+                                                <div style="width: 100%; color: #dc2626; font-size: 0.75rem;">{{ $errors->first() }}</div>
+                                            @endif
+                                        </form>
+                                        {{-- Placeholder awal (dinonaktifkan karena form sudah diimplementasikan):
                                         <span style="font-size: 0.8rem; color: var(--text-muted);">Form penilaian belum diimplementasikan</span>
+                                        --}}
                                     @else
                                         <span style="font-size: 0.8rem; color: var(--text-muted);">&mdash;</span>
                                     @endif

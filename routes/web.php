@@ -26,6 +26,7 @@ Route::middleware('guest')->group(function () {
 });
 
 // TODO 3: Bungkus route terproteksi dengan middleware 'auth', pisahkan route khusus 'role:dosen' dan 'role:mahasiswa', serta aktifkan route penilaian & export CSV
+Route::middleware(['auth'])->group(function () {
 
 // Logout
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -40,6 +41,9 @@ Route::put('/profile', [ProfileController::class, 'update'])->name('profile.upda
 // Mata Kuliah (Katalog & Detail Kelas untuk Dosen & Mahasiswa)
 Route::get('/courses', [MataKuliahController::class, 'index'])->name('courses.index');
 Route::get('/courses/{course}', [MataKuliahController::class, 'show'])->whereNumber('course')->name('courses.show');
+
+// Grup route khusus Dosen
+Route::middleware(['role:dosen'])->group(function () {
 
 // Manajemen Mata Kuliah (Khusus Dosen)
 Route::get('/courses/create', [MataKuliahController::class, 'create'])->name('courses.create');
@@ -71,7 +75,18 @@ Route::get('/assignments/{assignment}/submissions', [AssignmentController::class
 // Penilaian Tugas & Export CSV (Khusus Dosen - Aktifkan di TODO 3)
 // Route::patch('/submissions/{submission}/grade', [SubmissionController::class, 'grade'])->whereNumber('submission')->name('submissions.grade');
 // Route::get('/assignments/{assignment}/export-csv', [SubmissionController::class, 'exportCsv'])->whereNumber('assignment')->name('assignments.export-csv');
+Route::patch('/submissions/{submission}/grade', [SubmissionController::class, 'grade'])->whereNumber('submission')->name('submissions.grade');
+Route::get('/assignments/{assignment}/export-csv', [SubmissionController::class, 'exportCsv'])->whereNumber('assignment')->name('assignments.export-csv');
+
+}); // akhir grup role:dosen
+
+// Grup route khusus Mahasiswa
+Route::middleware(['role:mahasiswa'])->group(function () {
 
 // Pengajuan Pendaftaran Kelas & Pengumpulan Tugas (Khusus Mahasiswa)
 Route::post('/courses/{course}/enroll-request', [MataKuliahController::class, 'enrollRequest'])->whereNumber('course')->name('courses.enroll-request');
 Route::post('/assignments/{assignment}/submit', [SubmissionController::class, 'store'])->whereNumber('assignment')->name('submissions.store');
+
+}); // akhir grup role:mahasiswa
+
+}); // akhir grup auth

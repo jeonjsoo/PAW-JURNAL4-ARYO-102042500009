@@ -38,6 +38,25 @@ class MataKuliahController extends Controller
         }
 
         // TODO 4: Tambahkan logika filter berdasarkan parameter 'semester' dan pengurutan berdasarkan parameter 'sort' (nama_asc, nama_desc, sks_desc, sks_asc)
+        // Filter berdasarkan semester (jika dipilih)
+        if ($request->filled('semester')) {
+            $query->where('semester', $request->input('semester'));
+        }
+
+        // Pengurutan berdasarkan parameter 'sort'.
+        // Tanpa 'sort' atau 'nama_asc', urutan default (nama A-Z) ditangani oleh orderBy('nama_mk') di bawah.
+        switch ($request->input('sort')) {
+            case 'nama_desc':
+                $query->orderBy('nama_mk', 'desc');
+                break;
+            case 'sks_desc':
+                $query->orderBy('sks', 'desc');
+                break;
+            case 'sks_asc':
+                $query->orderBy('sks', 'asc');
+                break;
+        }
+
         $query->orderBy('nama_mk');
 
         $courses = $query->with('dosen')
